@@ -1,15 +1,13 @@
-﻿from fastapi import FastAPI, Request
+﻿from fastapi import FastAPI
 from pydantic import BaseModel
 import sqlite3
 from datetime import datetime
 import streamlit as st
 import pandas as pd
-import uvicorn
 import os
 
 app = FastAPI()
 
-# SQLite database (Render free tier has no persistent disk, but this works for demo)
 DB_PATH = "data/hives.db"
 os.makedirs("data", exist_ok=True)
 
@@ -27,13 +25,11 @@ def init_db():
 
 init_db()
 
-# Pydantic model for ESP32 data
 class HiveData(BaseModel):
     hive: int
     weight_kg: float
     extracting: bool = False
 
-# --- API: ESP32 sends data ---
 @app.post("/beehive")
 async def receive_data(data: HiveData):
     conn = sqlite3.connect(DB_PATH)
@@ -49,7 +45,6 @@ async def receive_data(data: HiveData):
     conn.close()
     return {"status": "success"}
 
-# --- API: Dashboard checks harvest request ---
 @app.get("/beehive/{hive_id}/harvest-status")
 async def harvest_status(hive_id: int):
     conn = sqlite3.connect(DB_PATH)
@@ -59,7 +54,6 @@ async def harvest_status(hive_id: int):
     conn.close()
     return "true" if result and result[0] else "false"
 
-# --- Dashboard (Streamlit UI) ---
 def run_dashboard():
     st.set_page_config(page_title="SMART NYUKI", layout="wide")
     st.title("🐝 SMART NYUKI - Live Dashboard")
@@ -92,10 +86,10 @@ def run_dashboard():
                     else:
                         st.button("Not Ready", disabled=True)
 
-# Run either API or Dashboard depending on environment
 if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1 and sys.argv[1] == "--dashboard":
         run_dashboard()
     else:
+        import uvicorn
         uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
